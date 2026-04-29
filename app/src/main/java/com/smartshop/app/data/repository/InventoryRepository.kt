@@ -32,7 +32,15 @@ class InventoryRepository(
     fun getItemsByCategory(category: String): Flow<List<InventoryItem>> = 
         inventoryDao.getItemsByCategory(category)
     
-    suspend fun insertItem(item: InventoryItem): Long = inventoryDao.insertItem(item)
+    suspend fun insert(item: InventoryItem): Long {
+        return try {
+            inventoryDao.insertItem(item)
+        } catch (e: Exception) {
+            -1L
+        }
+    }
+    
+    suspend fun insertItem(item: InventoryItem): Long = insert(item)
     
     suspend fun updateItem(item: InventoryItem) = inventoryDao.updateItem(item)
     

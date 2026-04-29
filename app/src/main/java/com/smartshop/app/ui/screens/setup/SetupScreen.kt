@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.smartshop.app.SmartShopApplication
 import com.smartshop.app.ui.theme.Primary
 import com.smartshop.app.ui.theme.PrimaryDark
-import com.smartshop.app.ui.theme.TextOnPrimary
+import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +46,7 @@ fun SetupScreen(
         Text(
             text = "SmartShop",
             style = MaterialTheme.typography.headlineLarge,
-            color = TextOnPrimary
+            color = androidx.compose.ui.graphics.Color.White
         )
         
         Spacer(modifier = Modifier.height(8.dp))
@@ -54,7 +54,7 @@ fun SetupScreen(
         Text(
             text = "Inventory Management",
             style = MaterialTheme.typography.titleMedium,
-            color = TextOnPrimary.copy(alpha = 0.8f)
+            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f)
         )
         
         Spacer(modifier = Modifier.height(48.dp))
