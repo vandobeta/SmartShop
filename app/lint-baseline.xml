@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.2.2" type="baseline" client="gradle" dependencies="false" name="AGP (8.2.2)" variant="fatal" version="8.2.2">
+
+    <issue
+        id="FullBackupContent"
+        message="Include `.` is also excluded"
+        errorLine1="    &lt;exclude domain=&quot;sharedpref&quot; path=&quot;.&quot; />"
+        errorLine2="                                       ~">
+        <location
+            file="src/main/res/xml/backup_rules.xml"
+            line="6"
+            column="40"/>
+        <location
+            file="src/main/res/xml/backup_rules.xml"
+            line="3"
+            column="34"
+            message="Unnecessary/conflicting &lt;include>"/>
+    </issue>
+
+    <issue
+        id="FullBackupContent"
+        message="Unexpected domain `no_backup`, expected one of root, file, database, sharedpref, external"
+        errorLine1="    &lt;exclude domain=&quot;no_backup&quot; path=&quot;.&quot; />"
+        errorLine2="                     ~~~~~~~~~">
+        <location
+            file="src/main/res/xml/backup_rules.xml"
+            line="7"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="FullBackupContent"
+        message="`.` is not in an included path"
+        errorLine1="    &lt;exclude domain=&quot;no_backup&quot; path=&quot;.&quot; />"
+        errorLine2="                                      ~">
+        <location
+            file="src/main/res/xml/backup_rules.xml"
+            line="7"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="FullBackupContent"
+        message="Unexpected domain `cache`, expected one of root, file, database, sharedpref, external"
+        errorLine1="        &lt;exclude domain=&quot;cache&quot; path=&quot;.&quot; />"
+        errorLine2="                         ~~~~~">
+        <location
+            file="src/main/res/xml/data_extraction_rules.xml"
+            line="7"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="FullBackupContent"
+        message="`.` is not in an included path"
+        errorLine1="        &lt;exclude domain=&quot;cache&quot; path=&quot;.&quot; />"
+        errorLine2="                                      ~">
+        <location
+            file="src/main/res/xml/data_extraction_rules.xml"
+            line="7"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="FullBackupContent"
+        message="Unexpected domain `no_backup`, expected one of root, file, database, sharedpref, external"
+        errorLine1="        &lt;exclude domain=&quot;no_backup&quot; path=&quot;.&quot; />"
+        errorLine2="                         ~~~~~~~~~">
+        <location
+            file="src/main/res/xml/data_extraction_rules.xml"
+            line="8"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="FullBackupContent"
+        message="`.` is not in an included path"
+        errorLine1="        &lt;exclude domain=&quot;no_backup&quot; path=&quot;.&quot; />"
+        errorLine2="                                          ~">
+        <location
+            file="src/main/res/xml/data_extraction_rules.xml"
+            line="8"
+            column="43"/>
+    </issue>
+
+</issues>

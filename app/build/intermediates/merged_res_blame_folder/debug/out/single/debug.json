@@ -1,0 +1,22 @@
+[
+    {
+        "merged": "com.smartshop.app-merged_res-76:/xml_device_admin.xml.flat",
+        "source": "com.smartshop.app-main-78:/xml/device_admin.xml"
+    },
+    {
+        "merged": "com.smartshop.app-merged_res-76:/xml_backup_rules.xml.flat",
+        "source": "com.smartshop.app-main-78:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "com.smartshop.app-merged_res-76:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.smartshop.app-main-78:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.smartshop.app-merged_res-76:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.smartshop.app-main-78:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.smartshop.app-merged_res-76:/xml_data_extraction_rules.xml.flat",
+        "source": "com.smartshop.app-main-78:/xml/data_extraction_rules.xml"
+    }
+]

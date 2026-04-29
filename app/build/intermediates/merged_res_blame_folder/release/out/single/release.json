@@ -1,0 +1,30 @@
+[
+    {
+        "merged": "/root/.gradle/daemon/8.5/com.smartshop.app-merged_res-72:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "/root/.gradle/daemon/8.5/com.smartshop.app-main-73:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "/root/.gradle/daemon/8.5/com.smartshop.app-merged_res-72:/xml_data_extraction_rules.xml.flat",
+        "source": "/root/.gradle/daemon/8.5/com.smartshop.app-main-73:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "/root/.gradle/daemon/8.5/com.smartshop.app-merged_res-72:/xml_backup_rules.xml.flat",
+        "source": "/root/.gradle/daemon/8.5/com.smartshop.app-main-73:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "com.smartshop.app-merged_res-72:/xml_data_extraction_rules.xml.flat",
+        "source": "com.smartshop.app-main-73:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.smartshop.app-merged_res-72:/xml_backup_rules.xml.flat",
+        "source": "com.smartshop.app-main-73:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "/root/.gradle/daemon/8.5/com.smartshop.app-merged_res-72:/xml_device_admin.xml.flat",
+        "source": "/root/.gradle/daemon/8.5/com.smartshop.app-main-73:/xml/device_admin.xml"
+    },
+    {
+        "merged": "/root/.gradle/daemon/8.5/com.smartshop.app-merged_res-72:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "/root/.gradle/daemon/8.5/com.smartshop.app-main-73:/drawable/ic_launcher_foreground.xml"
+    }
+]

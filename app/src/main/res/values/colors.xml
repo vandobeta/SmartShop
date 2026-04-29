@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors - Brown Palette -->
+    <color name="primary">#8B4513</color>
+    <color name="primary_dark">#5D3A1A</color>
+    <color name="primary_light">#A0522D</color>
+    
+    <!-- Secondary Colors - Blue Palette -->
+    <color name="secondary">#1E90FF</color>
+    <color name="secondary_dark">#104E8B</color>
+    <color name="secondary_light">#4169E1</color>
+    
+    <!-- Background and Surface -->
+    <color name="background">#F5DEB3</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#F5F5F5</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#3E2723</color>
+    <color name="text_secondary">#0D47A1</color>
+    <color name="text_on_primary">#FFFFFF</color>
+    <color name="text_on_secondary">#FFFFFF</color>
+    
+    <!-- Status Colors -->
+    <color name="success">#4CAF50</color>
+    <color name="error">#F44336</color>
+    <color name="warning">#FF9800</color>
+    <color name="info">#2196F3</color>
+    
+    <!-- Legacy colors for backward compatibility -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
