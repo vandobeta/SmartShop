@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-policies>
-        <!-- This policy prevents users from disabling the app as device admin -->
-        <!-- When user tries to clear data, Android will show a warning -->
-        <force-lock />
-    </uses-policies>
-</device-admin>
