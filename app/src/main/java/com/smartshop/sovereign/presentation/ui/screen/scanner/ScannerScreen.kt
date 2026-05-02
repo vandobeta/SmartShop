@@ -71,7 +71,7 @@ fun ScannerScreen(
 
             ScannerOverlay(
                 productName = uiState.scannedProduct?.name,
-                productPrice = uiState.scannedProduct?.price,
+                productPrice = uiState.scannedProduct?.price ?: 0,
                 productStock = uiState.scannedProduct?.quantity ?: 0,
                 isProductNotFound = uiState.isProductNotFound,
                 barcode = uiState.lastBarcode,
@@ -80,7 +80,8 @@ fun ScannerScreen(
                 onTorchToggle = { viewModel.toggleTorch() },
                 onCheckoutClick = onNavigateToCheckout,
                 onAddProductClick = { onNavigateToAddProduct(uiState.lastBarcode) },
-                onRetryClick = { viewModel.clearLastScan() },
+                onRescanClick = { viewModel.clearLastScan() },
+                onScanNextClick = { viewModel.clearLastScan() },
                 showAdminAuth = uiState.showAdminAuth,
                 adminAuthError = uiState.adminAuthError,
                 onAdminAuthSuccess = { viewModel.onAdminAuthSuccess() },
@@ -97,9 +98,7 @@ fun ScannerScreen(
 }
 
 @Composable
-private fun PermissionDeniedContent(
-    onRequestPermission: () -> Unit
-) {
+private fun PermissionDeniedContent(onRequestPermission: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -120,15 +119,6 @@ private fun PermissionDeniedContent(
             "Camera Permission Required",
             style = MaterialTheme.typography.headlineSmall,
             color = SmartShopColors.TextPrimary,
-            textAlign = TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Text(
-            "SmartShop needs camera access to scan barcodes.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = SmartShopColors.TextSecondary,
             textAlign = TextAlign.Center
         )
         
@@ -228,7 +218,7 @@ private fun CameraPreview(
 @Composable
 private fun ScannerOverlay(
     productName: String?,
-    productPrice: Long?,
+    productPrice: Long,
     productStock: Int,
     isProductNotFound: Boolean,
     barcode: String,
@@ -237,7 +227,8 @@ private fun ScannerOverlay(
     onTorchToggle: () -> Unit,
     onCheckoutClick: () -> Unit,
     onAddProductClick: () -> Unit,
-    onRetryClick: () -> Unit,
+    onRescanClick: () -> Unit,
+    onScanNextClick: () -> Unit,
     showAdminAuth: Boolean,
     adminAuthError: String,
     onAdminAuthSuccess: () -> Unit,
@@ -250,7 +241,7 @@ private fun ScannerOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.7f))
+                .background(Color.Black.copy(alpha = 0.5f))
         )
 
         // Top bar
@@ -300,36 +291,40 @@ private fun ScannerOverlay(
             modifier = Modifier.align(Alignment.Center)
         ) {
             Card(
-                modifier = Modifier.padding(32.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = SmartShopColors.CardBackground.copy(alpha = 0.95f)
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
                         Icons.Default.CheckCircle,
                         contentDescription = null,
                         tint = SmartShopColors.SuccessGreen,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(40.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         productName ?: "",
                         style = MaterialTheme.typography.titleLarge,
                         color = SmartShopColors.TextPrimary,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        "UGX ${((productPrice ?: 0) / 100).toLong().let { String.format("%,d", it) }}",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = SmartShopColors.ElectricBlue,
+                        textAlign = TextAlign.Center,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "UGX ${String.format("%,d", productPrice / 100)}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = SmartShopColors.ElectricBlue,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         "Stock: $productStock",
                         style = MaterialTheme.typography.bodyMedium,
@@ -339,7 +334,7 @@ private fun ScannerOverlay(
             }
         }
 
-        // Product not found + Admin Auth
+        // Product not found
         AnimatedVisibility(
             visible = isProductNotFound && barcode.isNotEmpty() && !showAdminAuth,
             enter = fadeIn(),
@@ -347,27 +342,30 @@ private fun ScannerOverlay(
             modifier = Modifier.align(Alignment.Center)
         ) {
             Card(
-                modifier = Modifier.padding(32.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = SmartShopColors.CardBackground.copy(alpha = 0.95f)
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
                         Icons.Default.Error,
                         contentDescription = null,
                         tint = SmartShopColors.ErrorRed,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(40.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Product Not Found",
                         style = MaterialTheme.typography.titleMedium,
-                        color = SmartShopColors.ErrorRed
+                        color = SmartShopColors.ErrorRed,
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
                         barcode,
@@ -375,27 +373,22 @@ private fun ScannerOverlay(
                         color = SmartShopColors.TextSecondary
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedButton(onClick = onRetryClick) {
-                            Text("Retry")
-                        }
-                        Button(
-                            onClick = onAddProductClick,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = SmartShopColors.ElectricBlue,
-                                contentColor = SmartShopColors.Black
-                            )
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add Product")
-                        }
+                    Button(
+                        onClick = onAddProductClick,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SmartShopColors.ElectricBlue,
+                            contentColor = SmartShopColors.Black
+                        )
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add Product")
                     }
                 }
             }
         }
 
-        // Admin Authentication Dialog
+        // Admin Auth Dialog
         if (showAdminAuth) {
             AdminAuthDialog(
                 barcode = pendingBarcode,
@@ -407,34 +400,72 @@ private fun ScannerOverlay(
             )
         }
 
-        // Bottom controls
+        // Bottom buttons
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
+                .padding(16.dp)
                 .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Action buttons row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Rescan button
+                Button(
+                    onClick = onRescanClick,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SmartShopColors.SurfaceVariant,
+                        contentColor = SmartShopColors.TextPrimary
+                    )
+                ) {
+                    Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Rescan")
+                }
+
+                // Scan Next button
+                Button(
+                    onClick = onScanNextClick,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SmartShopColors.SurfaceVariant,
+                        contentColor = SmartShopColors.TextPrimary
+                    )
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Scan Next")
+                }
+            }
+
+            // Checkout button
             if (cartItemCount > 0) {
                 ExtendedFloatingActionButton(
                     onClick = onCheckoutClick,
+                    modifier = Modifier.fillMaxWidth(),
                     containerColor = SmartShopColors.ElectricBlue,
                     contentColor = SmartShopColors.Black
                 ) {
                     Icon(Icons.Default.ShoppingCartCheckout, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Checkout ($cartItemCount)", fontWeight = FontWeight.Bold)
+                    Text("Checkout ($cartItemCount items)", fontWeight = FontWeight.Bold)
                 }
             } else {
                 Surface(
+                    modifier = Modifier.fillMaxWidth(),
                     color = SmartShopColors.Overlay,
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
                         "Point camera at barcode to scan",
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(16.dp),
                         color = SmartShopColors.TextMuted,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -457,7 +488,7 @@ private fun AdminAuthDialog(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(32.dp),
+            .padding(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = SmartShopColors.CardBackground
         ),
@@ -471,7 +502,7 @@ private fun AdminAuthDialog(
                 Icons.Default.Lock,
                 contentDescription = null,
                 tint = SmartShopColors.ElectricBlue,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(40.dp)
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -484,7 +515,7 @@ private fun AdminAuthDialog(
             )
             
             Text(
-                "Enter admin PIN to add new product",
+                "Enter PIN to add new product",
                 style = MaterialTheme.typography.bodyMedium,
                 color = SmartShopColors.TextSecondary
             )
