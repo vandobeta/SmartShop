@@ -4,25 +4,22 @@ import android.Manifest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -41,14 +38,14 @@ import com.google.mlkit.vision.common.InputImage
 import com.smartshop.sovereign.presentation.ui.theme.SmartShopColors
 import com.smartshop.sovereign.presentation.viewmodel.ScannerViewModel
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ScannerScreen(
     viewModel: ScannerViewModel = hiltViewModel(),
     onNavigateToCheckout: () -> Unit = {},
-    onNavigateToAddProduct: (String) -> Unit = {}
+    onNavigateToAddProduct: (String) -> Unit = {},
+    onNavigateToDashboard: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPermission = rememberPermissionState(Manifest.permission.CAMERA)
@@ -74,17 +71,22 @@ fun ScannerScreen(
 
             ScannerOverlay(
                 productName = uiState.scannedProduct?.name,
-                productPrice = uiState.scannedProduct?.formatPrice(),
+                productPrice = uiState.scannedProduct?.price,
+                productStock = uiState.scannedProduct?.quantity ?: 0,
                 isProductNotFound = uiState.isProductNotFound,
                 barcode = uiState.lastBarcode,
-                isTimerActive = uiState.isTimerActive,
-                timerProgress = uiState.timerProgress,
                 cartItemCount = uiState.cartItems.size,
                 isTorchOn = uiState.isTorchOn,
                 onTorchToggle = { viewModel.toggleTorch() },
                 onCheckoutClick = onNavigateToCheckout,
                 onAddProductClick = { onNavigateToAddProduct(uiState.lastBarcode) },
-                onRetryClick = { viewModel.clearLastScan() }
+                onRetryClick = { viewModel.clearLastScan() },
+                showAdminAuth = uiState.showAdminAuth,
+                adminAuthError = uiState.adminAuthError,
+                onAdminAuthSuccess = { viewModel.onAdminAuthSuccess() },
+                onAdminAuthFailed = { viewModel.onAdminAuthFailed(it) },
+                onCancelAuth = { viewModel.cancelAdminAuth() },
+                pendingBarcode = uiState.pendingBarcode
             )
         } else {
             PermissionDeniedContent(
@@ -124,7 +126,7 @@ private fun PermissionDeniedContent(
         Spacer(modifier = Modifier.height(12.dp))
         
         Text(
-            "SmartShop needs camera access to scan barcodes. Please grant permission to continue.",
+            "SmartShop needs camera access to scan barcodes.",
             style = MaterialTheme.typography.bodyMedium,
             color = SmartShopColors.TextSecondary,
             textAlign = TextAlign.Center
@@ -154,7 +156,6 @@ private fun CameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
-
     val barcodeScanner = remember { BarcodeScanning.getClient() }
     var lastScannedBarcode by remember { mutableStateOf("") }
     var lastScanTime by remember { mutableStateOf(0L) }
@@ -170,7 +171,6 @@ private fun CameraPreview(
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
             cameraProviderFuture.addListener({
                 val cameraProvider = cameraProviderFuture.get()
-
                 val preview = Preview.Builder().build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
@@ -187,7 +187,6 @@ private fun CameraPreview(
                                     imageProxy.imageInfo.rotationDegrees
                                 )
                                 val currentTime = System.currentTimeMillis()
-                                // Rate limiting: 500ms between scans
                                 if (currentTime - lastScanTime > 500) {
                                     barcodeScanner.process(inputImage)
                                         .addOnSuccessListener { barcodes ->
@@ -201,9 +200,7 @@ private fun CameraPreview(
                                                 }
                                             }
                                         }
-                                        .addOnCompleteListener {
-                                            imageProxy.close()
-                                        }
+                                        .addOnCompleteListener { imageProxy.close() }
                                 } else {
                                     imageProxy.close()
                                 }
@@ -214,14 +211,10 @@ private fun CameraPreview(
                     }
 
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
                 try {
                     cameraProvider.unbindAll()
                     val camera = cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        cameraSelector,
-                        preview,
-                        imageAnalysis
+                        lifecycleOwner, cameraSelector, preview, imageAnalysis
                     )
                     camera.cameraControl.enableTorch(isTorchOn)
                 } catch (e: Exception) {
@@ -235,21 +228,32 @@ private fun CameraPreview(
 @Composable
 private fun ScannerOverlay(
     productName: String?,
-    productPrice: String?,
+    productPrice: Long?,
+    productStock: Int,
     isProductNotFound: Boolean,
     barcode: String,
-    isTimerActive: Boolean,
-    timerProgress: Float,
     cartItemCount: Int,
     isTorchOn: Boolean,
     onTorchToggle: () -> Unit,
     onCheckoutClick: () -> Unit,
     onAddProductClick: () -> Unit,
-    onRetryClick: () -> Unit
+    onRetryClick: () -> Unit,
+    showAdminAuth: Boolean,
+    adminAuthError: String,
+    onAdminAuthSuccess: () -> Unit,
+    onAdminAuthFailed: (String) -> Unit,
+    onCancelAuth: () -> Unit,
+    pendingBarcode: String
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        ViewfinderFrame()
-        
+        // Semi-transparent overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.7f))
+        )
+
+        // Top bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -287,16 +291,16 @@ private fun ScannerOverlay(
                 )
             }
         }
-        
+
+        // Product found card
         AnimatedVisibility(
             visible = productName != null && !isProductNotFound,
             enter = fadeIn(),
-            exit = fadeOut()
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center)
         ) {
             Card(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 32.dp),
+                modifier = Modifier.padding(32.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = SmartShopColors.CardBackground.copy(alpha = 0.95f)
                 ),
@@ -320,24 +324,30 @@ private fun ScannerOverlay(
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        productPrice ?: "",
+                        "UGX ${((productPrice ?: 0) / 100).toLong().let { String.format("%,d", it) }}",
                         style = MaterialTheme.typography.headlineMedium,
                         color = SmartShopColors.ElectricBlue,
                         fontWeight = FontWeight.Bold
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Stock: $productStock",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (productStock < 5) SmartShopColors.ErrorRed else SmartShopColors.TextSecondary
+                    )
                 }
             }
         }
-        
+
+        // Product not found + Admin Auth
         AnimatedVisibility(
-            visible = isProductNotFound && barcode.isNotEmpty(),
+            visible = isProductNotFound && barcode.isNotEmpty() && !showAdminAuth,
             enter = fadeIn(),
-            exit = fadeOut()
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center)
         ) {
             Card(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 32.dp),
+                modifier = Modifier.padding(32.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = SmartShopColors.CardBackground.copy(alpha = 0.95f)
                 ),
@@ -384,7 +394,20 @@ private fun ScannerOverlay(
                 }
             }
         }
-        
+
+        // Admin Authentication Dialog
+        if (showAdminAuth) {
+            AdminAuthDialog(
+                barcode = pendingBarcode,
+                error = adminAuthError,
+                onSuccess = onAdminAuthSuccess,
+                onFailed = onAdminAuthFailed,
+                onCancel = onCancelAuth,
+                onAddProduct = onAddProductClick
+            )
+        }
+
+        // Bottom controls
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -419,49 +442,115 @@ private fun ScannerOverlay(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ViewfinderFrame() {
-    Canvas(
-        modifier = Modifier.fillMaxSize()
+private fun AdminAuthDialog(
+    barcode: String,
+    error: String,
+    onSuccess: () -> Unit,
+    onFailed: (String) -> Unit,
+    onCancel: () -> Unit,
+    onAddProduct: () -> Unit
+) {
+    var passcode by remember { mutableStateOf("") }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = SmartShopColors.CardBackground
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        val canvasWidth = size.width
-        val canvasHeight = size.height
-        val frameWidth = canvasWidth * 0.8f
-        val frameHeight = frameWidth * 0.6f
-        val left = (canvasWidth - frameWidth) / 2
-        val top = (canvasHeight - frameHeight) / 2 + 100.dp.toPx()
-
-        // Semi-transparent overlay
-        drawRect(
-            color = Color.Black.copy(alpha = 0.6f),
-            size = Size(canvasWidth, canvasHeight)
-        )
-        
-        // Clear the center square
-        drawRect(
-            color = Color.Transparent,
-            topLeft = Offset(left, top),
-            size = Size(frameWidth, frameHeight)
-        )
-
-        val cornerLength = 40.dp.toPx()
-        val strokeWidth = 4.dp.toPx()
-        val blue = SmartShopColors.ElectricBlue
-
-        // Top-left
-        drawLine(blue, Offset(left, top + cornerLength), Offset(left, top), strokeWidth, cap = StrokeCap.Round)
-        drawLine(blue, Offset(left, top), Offset(left + cornerLength, top), strokeWidth, cap = StrokeCap.Round)
-        
-        // Top-right
-        drawLine(blue, Offset(left + frameWidth - cornerLength, top), Offset(left + frameWidth, top), strokeWidth, cap = StrokeCap.Round)
-        drawLine(blue, Offset(left + frameWidth, top), Offset(left + frameWidth, top + cornerLength), strokeWidth, cap = StrokeCap.Round)
-        
-        // Bottom-left
-        drawLine(blue, Offset(left, top + frameHeight - cornerLength), Offset(left, top + frameHeight), strokeWidth, cap = StrokeCap.Round)
-        drawLine(blue, Offset(left, top + frameHeight), Offset(left + cornerLength, top + frameHeight), strokeWidth, cap = StrokeCap.Round)
-        
-        // Bottom-right
-        drawLine(blue, Offset(left + frameWidth - cornerLength, top + frameHeight), Offset(left + frameWidth, top + frameHeight), strokeWidth, cap = StrokeCap.Round)
-        drawLine(blue, Offset(left + frameWidth, top + frameHeight - cornerLength), Offset(left + frameWidth, top + frameHeight), strokeWidth, cap = StrokeCap.Round)
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                Icons.Default.Lock,
+                contentDescription = null,
+                tint = SmartShopColors.ElectricBlue,
+                modifier = Modifier.size(48.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                "Admin Authentication",
+                style = MaterialTheme.typography.titleLarge,
+                color = SmartShopColors.TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Text(
+                "Enter admin PIN to add new product",
+                style = MaterialTheme.typography.bodyMedium,
+                color = SmartShopColors.TextSecondary
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                "Barcode: $barcode",
+                style = MaterialTheme.typography.bodySmall,
+                color = SmartShopColors.TextMuted
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            OutlinedTextField(
+                value = passcode,
+                onValueChange = { if (it.length <= 6) passcode = it },
+                label = { Text("Admin PIN") },
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = SmartShopColors.ElectricBlue,
+                    focusedLabelColor = SmartShopColors.ElectricBlue
+                )
+            )
+            
+            if (error.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    error,
+                    color = SmartShopColors.ErrorRed,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Cancel")
+                }
+                Button(
+                    onClick = {
+                        if (passcode.length >= 4) {
+                            onSuccess()
+                            onAddProduct()
+                        } else {
+                            onFailed("PIN must be at least 4 digits")
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SmartShopColors.ElectricBlue,
+                        contentColor = SmartShopColors.Black
+                    )
+                ) {
+                    Text("Verify & Add")
+                }
+            }
+        }
     }
 }

@@ -13,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.smartshop.sovereign.presentation.ui.screen.addproduct.AddProductScreen
+import com.smartshop.sovereign.presentation.ui.screen.admin.DashboardScreen
 import com.smartshop.sovereign.presentation.ui.screen.checkout.CheckoutScreen
 import com.smartshop.sovereign.presentation.ui.screen.scanner.ScannerScreen
 import com.smartshop.sovereign.presentation.ui.screen.setup.SetupScreen
@@ -47,6 +48,10 @@ sealed class Screen(val route: String) {
     object Checkout : Screen("checkout")
     object AddProduct : Screen("add_product/{barcode}") {
         fun createRoute(barcode: String) = "add_product/$barcode"
+    }
+    object Dashboard : Screen("dashboard")
+    object Restock : Screen("restock/{barcode}") {
+        fun createRoute(barcode: String) = "restock/$barcode"
     }
 }
 
@@ -83,6 +88,9 @@ fun SmartShopApp() {
                 },
                 onNavigateToAddProduct = { barcode ->
                     navController.navigate(Screen.AddProduct.createRoute(barcode))
+                },
+                onNavigateToDashboard = {
+                    navController.navigate(Screen.Dashboard.route)
                 }
             )
         }
@@ -112,6 +120,14 @@ fun SmartShopApp() {
                     navController.popBackStack()
                 },
                 onProductAdded = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.Dashboard.route) {
+            DashboardScreen(
+                onNavigateBack = {
                     navController.popBackStack()
                 }
             )

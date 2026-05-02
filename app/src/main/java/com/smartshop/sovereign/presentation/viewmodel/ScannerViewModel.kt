@@ -6,6 +6,8 @@ import com.smartshop.sovereign.data.local.datastore.SettingsDataStore
 import com.smartshop.sovereign.domain.model.CartItem
 import com.smartshop.sovereign.domain.model.Product
 import com.smartshop.sovereign.domain.usecase.*
+import com.smartshop.sovereign.util.AuditLogger
+import com.smartshop.sovereign.util.SovereignSensoryManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -18,19 +20,23 @@ data class ScannerUiState(
     val lastBarcode: String = "",
     val isTimerActive: Boolean = false,
     val timerProgress: Float = 1f,
-    val isLowLight: Boolean = false,
     val cartItems: List<CartItem> = emptyList(),
     val showCheckout: Boolean = false,
     val isTorchOn: Boolean = false,
     val isFirstLaunch: Boolean = true,
-    val isAdminAuthenticated: Boolean = false
+    val showAdminAuth: Boolean = false,
+    val adminAuthError: String = "",
+    val isAdminAuthenticated: Boolean = false,
+    val pendingBarcode: String = ""
 )
 
 @HiltViewModel
 class ScannerViewModel @Inject constructor(
     private val scanLookupUseCase: ScanLookupUseCase,
     private val addProductUseCase: AddProductUseCase,
-    private val settingsDataStore: SettingsDataStore
+    private val settingsDataStore: SettingsDataStore,
+    private val sensoryManager: SovereignSensoryManager,
+    private val auditLogger: AuditLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ScannerUiState())
@@ -49,11 +55,13 @@ class ScannerViewModel @Inject constructor(
     }
 
     fun onBarcodeScanned(barcode: String) {
+        // Prevent duplicate scans
         if (_uiState.value.isTimerActive) return
 
         viewModelScope.launch {
             val product = scanLookupUseCase(barcode)
             if (product != null) {
+                // Product found - add to cart and show details
                 addToCart(product)
                 _uiState.update {
                     it.copy(
@@ -63,15 +71,24 @@ class ScannerViewModel @Inject constructor(
                         isTimerActive = true
                     )
                 }
+                // Success feedback: short beep + vibration
+                sensoryManager.onScanSuccess()
+                auditLogger.onScanSuccess(barcode)
                 startRescanTimer()
             } else {
+                // Product not found - trigger admin auth
                 _uiState.update {
                     it.copy(
                         isProductNotFound = true,
                         lastBarcode = barcode,
+                        showAdminAuth = true,
+                        pendingBarcode = barcode,
                         scannedProduct = null
                     )
                 }
+                // Error feedback: long vibration
+                sensoryManager.onScanError()
+                auditLogger.onScanError(barcode)
             }
         }
     }
@@ -98,13 +115,45 @@ class ScannerViewModel @Inject constructor(
         }
     }
 
+    fun onAdminAuthSuccess() {
+        _uiState.update {
+            it.copy(
+                showAdminAuth = false,
+                isAdminAuthenticated = true,
+                adminAuthError = ""
+            )
+        }
+    }
+
+    fun onAdminAuthFailed(error: String) {
+        _uiState.update {
+            it.copy(
+                adminAuthError = error,
+                isAdminAuthenticated = false
+            )
+        }
+    }
+
+    fun cancelAdminAuth() {
+        _uiState.update {
+            it.copy(
+                showAdminAuth = false,
+                pendingBarcode = "",
+                isProductNotFound = false,
+                lastBarcode = "",
+                adminAuthError = ""
+            )
+        }
+    }
+
     fun clearLastScan() {
         _uiState.update {
             it.copy(
                 lastBarcode = "",
                 isProductNotFound = false,
                 scannedProduct = null,
-                isTimerActive = false
+                isTimerActive = false,
+                showAdminAuth = false
             )
         }
     }
@@ -130,13 +179,5 @@ class ScannerViewModel @Inject constructor(
 
     fun dismissCheckout() {
         _uiState.update { it.copy(showCheckout = false) }
-    }
-
-    fun verifyAdmin(passcode: String): Boolean {
-        return true
-    }
-
-    fun setAdminAuthenticated(authenticated: Boolean) {
-        _uiState.update { it.copy(isAdminAuthenticated = authenticated) }
     }
 }
