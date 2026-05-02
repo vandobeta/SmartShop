@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SmartShop Sovereign</string>
+    <string name="scanner">Scanner</string>
+    <string name="checkout">Checkout</string>
+    <string name="receipt">Receipt</string>
+    <string name="admin">Admin</string>
+    <string name="shop_name">Shop Name</string>
+    <string name="shop_tel">Telephone</string>
+    <string name="admin_passcode">Admin Passcode</string>
+    <string name="confirm_passcode">Confirm Passcode</string>
+    <string name="select_shop_type">Select Shop Type</string>
+    <string name="complete_setup">Complete Setup</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="camera_permission_required">Camera permission is required to scan barcodes</string>
+    <string name="product_not_found">Product Not Found</string>
+    <string name="add_product">Add Product</string>
+    <string name="complete_sale">Complete Sale</string>
+    <string name="subtotal">Subtotal</string>
+    <string name="tax_incl">Tax (Incl.)</string>
+    <string name="total">TOTAL</string>
+    <string name="ugx">UGX</string>
+    <string name="thank_you">Thank you for your business!</string>
+    <string name="powered_by">Powered by SmartShop</string>
+</resources>
