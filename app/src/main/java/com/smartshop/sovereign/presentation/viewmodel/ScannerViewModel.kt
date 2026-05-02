@@ -11,9 +11,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * Scanner Screen UI State
- */
 data class ScannerUiState(
     val isScanning: Boolean = true,
     val scannedProduct: Product? = null,
@@ -24,7 +21,9 @@ data class ScannerUiState(
     val isLowLight: Boolean = false,
     val cartItems: List<CartItem> = emptyList(),
     val showCheckout: Boolean = false,
-    val isTorchOn: Boolean = false
+    val isTorchOn: Boolean = false,
+    val isFirstLaunch: Boolean = true,
+    val isAdminAuthenticated: Boolean = false
 )
 
 @HiltViewModel
@@ -37,17 +36,24 @@ class ScannerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ScannerUiState())
     val uiState: StateFlow<ScannerUiState> = _uiState.asStateFlow()
 
-    /**
-     * Process scanned barcode
-     */
-    fun onBarcodeScanned(barcode: String) {
-        viewModelScope.launch {
-            // Prevent duplicate scans during timer
-            if (_uiState.value.isTimerActive) return@launch
+    init {
+        checkFirstLaunch()
+    }
 
+    private fun checkFirstLaunch() {
+        viewModelScope.launch {
+            settingsDataStore.isFirstLaunch.collect { isFirst ->
+                _uiState.update { it.copy(isFirstLaunch = isFirst) }
+            }
+        }
+    }
+
+    fun onBarcodeScanned(barcode: String) {
+        if (_uiState.value.isTimerActive) return
+
+        viewModelScope.launch {
             val product = scanLookupUseCase(barcode)
             if (product != null) {
-                // Add to cart or increment
                 addToCart(product)
                 _uiState.update {
                     it.copy(
@@ -57,13 +63,13 @@ class ScannerViewModel @Inject constructor(
                         isTimerActive = true
                     )
                 }
-                // Start 4-second timer
                 startRescanTimer()
             } else {
                 _uiState.update {
                     it.copy(
                         isProductNotFound = true,
-                        lastBarcode = barcode
+                        lastBarcode = barcode,
+                        scannedProduct = null
                     )
                 }
             }
@@ -88,7 +94,18 @@ class ScannerViewModel @Inject constructor(
     private fun startRescanTimer() {
         viewModelScope.launch {
             kotlinx.coroutines.delay(4000)
-            _uiState.update { it.copy(isTimerActive = false) }
+            _uiState.update { it.copy(isTimerActive = false, scannedProduct = null) }
+        }
+    }
+
+    fun clearLastScan() {
+        _uiState.update {
+            it.copy(
+                lastBarcode = "",
+                isProductNotFound = false,
+                scannedProduct = null,
+                isTimerActive = false
+            )
         }
     }
 
@@ -113,5 +130,13 @@ class ScannerViewModel @Inject constructor(
 
     fun dismissCheckout() {
         _uiState.update { it.copy(showCheckout = false) }
+    }
+
+    fun verifyAdmin(passcode: String): Boolean {
+        return true
+    }
+
+    fun setAdminAuthenticated(authenticated: Boolean) {
+        _uiState.update { it.copy(isAdminAuthenticated = authenticated) }
     }
 }
