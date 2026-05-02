@@ -55,6 +55,9 @@ class SettingsDataStore @Inject constructor(
     val animationsEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[PreferencesKeys.ANIMATIONS_ENABLED] ?: true }
 
+    val cashierName: Flow<String> = context.dataStore.data
+        .map { it[PreferencesKeys.CASHIER_NAME] ?: "Admin" }
+
     suspend fun setFirstLaunchComplete() {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.IS_FIRST_LAUNCH] = false
@@ -72,6 +75,12 @@ class SettingsDataStore @Inject constructor(
             preferences[PreferencesKeys.SHOP_NAME] = name
             preferences[PreferencesKeys.SHOP_TEL] = tel
             preferences[PreferencesKeys.SHOP_NICHE] = niche
+        }
+    }
+
+    suspend fun setCashierName(name: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.CASHIER_NAME] = name
         }
     }
 

@@ -15,6 +15,7 @@ data class SetupUiState(
     val shopType: String = "",
     val shopName: String = "",
     val shopTel: String = "",
+    val cashierName: String = "",
     val isComplete: Boolean = false,
     val isLoading: Boolean = false,
     val error: String = ""
@@ -67,6 +68,10 @@ class SetupViewModel @Inject constructor(
         _uiState.update { it.copy(shopTel = tel, error = "") }
     }
 
+    fun setCashierName(name: String) {
+        _uiState.update { it.copy(cashierName = name, error = "") }
+    }
+
     fun nextStep() {
         _uiState.update { state ->
             when (state.step) {
@@ -104,6 +109,7 @@ class SetupViewModel @Inject constructor(
 
                 settingsDataStore.setAdminPasscode(state.passcode)
                 settingsDataStore.setShopInfo(state.shopName, state.shopTel, state.shopType)
+                settingsDataStore.setCashierName(state.cashierName.ifBlank { "Admin" })
                 settingsDataStore.setFirstLaunchComplete()
 
                 _uiState.update { it.copy(isLoading = false, isComplete = true) }

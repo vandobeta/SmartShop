@@ -2,12 +2,13 @@ package com.smartshop.sovereign.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.smartshop.sovereign.data.local.dao.ProductDao
+import com.smartshop.sovereign.data.local.dao.SaleDao
 import com.smartshop.sovereign.data.local.datastore.SettingsDataStore
 import com.smartshop.sovereign.domain.model.CartItem
 import com.smartshop.sovereign.domain.model.ReceiptData
 import com.smartshop.sovereign.domain.model.ReceiptItem
 import com.smartshop.sovereign.domain.usecase.CalculateTaxUseCase
-import com.smartshop.sovereign.domain.usecase.CompleteSaleUseCase
 import com.smartshop.sovereign.util.AuditLogger
 import com.smartshop.sovereign.util.ReceiptGenerator
 import com.smartshop.sovereign.util.SovereignSensoryManager
@@ -20,9 +21,6 @@ import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
-/**
- * Checkout Screen UI State
- */
 data class CheckoutUiState(
     val cartItems: List<CartItem> = emptyList(),
     val subtotal: Long = 0,
@@ -31,13 +29,18 @@ data class CheckoutUiState(
     val isProcessing: Boolean = false,
     val receiptText: String = "",
     val saleComplete: Boolean = false,
-    val error: String = ""
+    val error: String = "",
+    val shopName: String = "",
+    val shopTel: String = "",
+    val cashierName: String = "",
+    val taxRate: Long = 1800L
 )
 
 @HiltViewModel
 class CheckoutViewModel @Inject constructor(
     private val calculateTaxUseCase: CalculateTaxUseCase,
-    private val completeSaleUseCase: CompleteSaleUseCase,
+    private val saleDao: SaleDao,
+    private val productDao: ProductDao,
     private val settingsDataStore: SettingsDataStore,
     private val receiptGenerator: ReceiptGenerator,
     private val auditLogger: AuditLogger,
@@ -48,14 +51,58 @@ class CheckoutViewModel @Inject constructor(
     val uiState: StateFlow<CheckoutUiState> = _uiState.asStateFlow()
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+    private val receiptDateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US)
+
+    init {
+        loadShopInfo()
+    }
+
+    private fun loadShopInfo() {
+        viewModelScope.launch {
+            val shopName = settingsDataStore.shopName.first()
+            val shopTel = settingsDataStore.shopTel.first()
+            val taxRate = settingsDataStore.taxRate.first()
+            
+            _uiState.update {
+                it.copy(
+                    shopName = shopName,
+                    shopTel = shopTel,
+                    cashierName = "Admin", // Default
+                    taxRate = taxRate
+                )
+            }
+        }
+    }
 
     fun setCartItems(items: List<CartItem>) {
-        viewModelScope.launch {
-            val taxRate = settingsDataStore.taxRate.first()
-            val (subtotal, tax, total) = calculateTaxUseCase(items, taxRate)
-            _uiState.update {
-                it.copy(cartItems = items, subtotal = subtotal, tax = tax, total = total)
+        _uiState.update { state ->
+            val (subtotal, tax, total) = calculateTaxUseCase(items, state.taxRate)
+            state.copy(cartItems = items, subtotal = subtotal, tax = tax, total = total)
+        }
+    }
+
+    fun updateQuantity(barcode: String, newQuantity: Int) {
+        _uiState.update { state ->
+            if (newQuantity <= 0) {
+                val newItems = state.cartItems.filter { it.product.barcode != barcode }
+                val (subtotal, tax, total) = calculateTaxUseCase(newItems, state.taxRate)
+                state.copy(cartItems = newItems, subtotal = subtotal, tax = tax, total = total)
+            } else {
+                val newItems = state.cartItems.map {
+                    if (it.product.barcode == barcode) it.copy(quantity = newQuantity)
+                    else it
+                }
+                val (subtotal, tax, total) = calculateTaxUseCase(newItems, state.taxRate)
+                state.copy(cartItems = newItems, subtotal = subtotal, tax = tax, total = total)
             }
+        }
+    }
+
+    fun removeItem(barcode: String) {
+        _uiState.update { state ->
+            val newItems = state.cartItems.filter { it.product.barcode != barcode }
+            val (subtotal, tax, total) = calculateTaxUseCase(newItems, state.taxRate)
+            state.copy(cartItems = newItems, subtotal = subtotal, tax = tax, total = total)
         }
     }
 
@@ -65,31 +112,47 @@ class CheckoutViewModel @Inject constructor(
 
             try {
                 val state = _uiState.value
-                val (subtotal, tax, total) = calculateTaxUseCase(state.cartItems, settingsDataStore.taxRate.first())
+                if (state.cartItems.isEmpty()) {
+                    _uiState.update { it.copy(isProcessing = false, error = "Cart is empty") }
+                    return@launch
+                }
 
-                // Complete sale
-                completeSaleUseCase(
-                    items = state.cartItems,
-                    subtotal = subtotal,
-                    tax = tax,
-                    total = total,
-                    cashierName = "CASHIER" // TODO: Get from settings
+                val (subtotal, tax, total) = calculateTaxUseCase(state.cartItems, state.taxRate)
+
+                // Reduce stock for each item
+                state.cartItems.forEach { item ->
+                    val product = item.product
+                    val newQuantity = product.quantity - item.quantity
+                    if (newQuantity >= 0) {
+                        productDao.decrementStock(product.barcode, item.quantity)
+                    }
+                }
+
+                // Save sale record
+                val saleId = saleDao.insertSale(
+                    com.smartshop.sovereign.data.local.entity.SaleEntity(
+                        itemsJson = state.cartItems.map { "${it.product.barcode}:${it.quantity}:${it.product.price}" }.joinToString(";"),
+                        subtotal = subtotal,
+                        tax = tax,
+                        total = total,
+                        cashierName = state.cashierName
+                    )
                 )
 
                 // Generate receipt
                 val receiptData = ReceiptData(
-                    shopName = settingsDataStore.shopName.first(),
-                    shopTel = settingsDataStore.shopTel.first(),
-                    cashierName = "CASHIER",
-                    timestamp = dateFormat.format(Date()),
-                    transactionId = UUID.randomUUID().toString().take(8).uppercase(),
+                    shopName = state.shopName,
+                    shopTel = state.shopTel,
+                    cashierName = state.cashierName,
+                    timestamp = receiptDateFormat.format(Date()),
+                    transactionId = "TXN-${String.format("%06d", saleId)}",
                     items = state.cartItems.map {
                         ReceiptItem(it.product.name, it.quantity, it.product.price, it.totalPrice)
                     },
                     subtotal = subtotal,
                     tax = tax,
                     total = total,
-                    nicheType = settingsDataStore.shopNiche.first()
+                    nicheType = "Shop"
                 )
 
                 val receiptText = receiptGenerator.generate(receiptData)
@@ -115,7 +178,11 @@ class CheckoutViewModel @Inject constructor(
         }
     }
 
+    fun cancelSale() {
+        _uiState.update { CheckoutUiState(shopName = it.shopName, shopTel = it.shopTel, cashierName = it.cashierName) }
+    }
+
     fun clearSale() {
-        _uiState.update { CheckoutUiState() }
+        _uiState.update { CheckoutUiState(shopName = it.shopName, shopTel = it.shopTel, cashierName = it.cashierName) }
     }
 }

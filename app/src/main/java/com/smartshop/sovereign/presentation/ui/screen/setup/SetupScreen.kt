@@ -63,10 +63,12 @@ fun SetupScreen(
                 3 -> ShopInfoStep(
                     shopName = uiState.shopName,
                     shopTel = uiState.shopTel,
+                    cashierName = uiState.cashierName,
                     error = uiState.error,
                     isLoading = uiState.isLoading,
                     onNameChange = { viewModel.setShopName(it) },
                     onTelChange = { viewModel.setShopTel(it) },
+                    onCashierChange = { viewModel.setCashierName(it) },
                     onComplete = { viewModel.completeSetup() }
                 )
                 else -> {
@@ -116,7 +118,7 @@ private fun WelcomeStep(onNext: () -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
         
         Text(
-            "Let's set up your shop in a few simple steps. You'll need to create an admin PIN and enter your shop details.",
+            "Set up your shop in minutes. Create an admin PIN and enter your shop details.",
             style = MaterialTheme.typography.bodyLarge,
             color = SmartShopColors.TextSecondary,
             textAlign = TextAlign.Center
@@ -173,15 +175,6 @@ private fun PasscodeStep(
             fontWeight = FontWeight.Bold
         )
         
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            "This PIN will be required to access admin features and add new products",
-            style = MaterialTheme.typography.bodyMedium,
-            color = SmartShopColors.TextSecondary,
-            textAlign = TextAlign.Center
-        )
-        
         Spacer(modifier = Modifier.height(32.dp))
         
         OutlinedTextField(
@@ -214,11 +207,7 @@ private fun PasscodeStep(
         
         if (error.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                error,
-                color = SmartShopColors.ErrorRed,
-                style = MaterialTheme.typography.bodySmall
-            )
+            Text(error, color = SmartShopColors.ErrorRed, style = MaterialTheme.typography.bodySmall)
         }
         
         Spacer(modifier = Modifier.weight(1f))
@@ -233,8 +222,6 @@ private fun PasscodeStep(
             )
         ) {
             Text("Continue", fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Default.ArrowForward, contentDescription = null)
         }
     }
 }
@@ -262,14 +249,6 @@ private fun ShopTypeStep(
             fontWeight = FontWeight.Bold
         )
         
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            "This helps us customize your experience",
-            style = MaterialTheme.typography.bodyMedium,
-            color = SmartShopColors.TextSecondary
-        )
-        
         Spacer(modifier = Modifier.height(24.dp))
         
         LazyColumn(
@@ -294,17 +273,9 @@ private fun ShopTypeStep(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            type,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = SmartShopColors.TextPrimary
-                        )
+                        Text(type, style = MaterialTheme.typography.bodyLarge, color = SmartShopColors.TextPrimary)
                         if (selectedType == type) {
-                            Icon(
-                                Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = SmartShopColors.ElectricBlue
-                            )
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SmartShopColors.ElectricBlue)
                         }
                     }
                 }
@@ -323,8 +294,6 @@ private fun ShopTypeStep(
             )
         ) {
             Text("Continue", fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Default.ArrowForward, contentDescription = null)
         }
     }
 }
@@ -334,10 +303,12 @@ private fun ShopTypeStep(
 private fun ShopInfoStep(
     shopName: String,
     shopTel: String,
+    cashierName: String,
     error: String,
     isLoading: Boolean,
     onNameChange: (String) -> Unit,
     onTelChange: (String) -> Unit,
+    onCashierChange: (String) -> Unit,
     onComplete: () -> Unit
 ) {
     Column(
@@ -362,14 +333,6 @@ private fun ShopInfoStep(
             style = MaterialTheme.typography.headlineSmall,
             color = SmartShopColors.TextPrimary,
             fontWeight = FontWeight.Bold
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            "This information will appear on your receipts",
-            style = MaterialTheme.typography.bodyMedium,
-            color = SmartShopColors.TextSecondary
         )
         
         Spacer(modifier = Modifier.height(32.dp))
@@ -400,14 +363,24 @@ private fun ShopInfoStep(
                 focusedLabelColor = SmartShopColors.ElectricBlue
             )
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = cashierName,
+            onValueChange = onCashierChange,
+            label = { Text("Your Name (Cashier)") },
+            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = SmartShopColors.ElectricBlue,
+                focusedLabelColor = SmartShopColors.ElectricBlue
+            )
+        )
         
         if (error.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                error,
-                color = SmartShopColors.ErrorRed,
-                style = MaterialTheme.typography.bodySmall
-            )
+            Text(error, color = SmartShopColors.ErrorRed, style = MaterialTheme.typography.bodySmall)
         }
         
         Spacer(modifier = Modifier.weight(1f))
@@ -422,10 +395,7 @@ private fun ShopInfoStep(
             )
         ) {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = SmartShopColors.ElectricBlue
-                )
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = SmartShopColors.ElectricBlue)
             } else {
                 Text("Complete Setup", fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(8.dp))
